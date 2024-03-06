@@ -1,0 +1,50 @@
+variables:
+  vmImageName: 'ubuntu-latest'
+  Path_Tests: './TesteNBomber'
+
+stages:
+- stage: Tests
+  displayName: Tests stage
+  variables:
+    - group: nbomber-configurations
+  jobs:
+  - job: Tests
+    displayName: Tests
+    pool:
+      vmImage: $(vmImageName)
+    steps:
+    - script: |
+        echo '*** SDKs do .NET intalados ***'
+        dotnet --list-sdks
+        echo '*** Versão assumida como default para o .NET ***'
+        dotnet --version
+      displayName: Exibir versoes instaladas do .NET SDK
+    - script: |
+        cd $(Path_Tests)
+        mkdir results
+        ls
+        dotnet run -c Release -o out
+      displayName: Executar benchmarking com testes de performance - Entity Framework Core x Dapper
+      env:
+        UrlRequest: $(Endpoint)
+        WarmUpDurationSeconds: $(WarmUp)
+        VirtualUsers: $(VUs)
+        IntervalSeconds: $(Interval)
+        DurationSeconds: $(Duration)
+        HostPing: $(Host)
+        ReportFileName: $(ReportFile)
+        ReportFolder: $(Build.SourcesDirectory)/TesteNBomber/out
+    - script: |
+        cd $(Build.SourcesDirectory)/TesteNBomber/out
+        ls
+      displayName: Listar arquivos gerados (incluindo resultado) na pasta out
+    - task: PublishHtmlReport@1
+      inputs:
+        reportDir: '$(Build.SourcesDirectory)/TesteNBomber/out/$(ReportFile).html'
+      displayName: Publicar resultado no formato HTML
+    - task: PublishPipelineArtifact@1
+      inputs:
+        targetPath: '$(Build.SourcesDirectory)/TesteNBomber/out/$(ReportFile).html'
+        artifact: 'results-nbomber'
+        publishLocation: 'pipeline'
+      displayName: Publicar relatorio HTML como Artifact
